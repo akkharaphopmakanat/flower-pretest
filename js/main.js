@@ -18,6 +18,7 @@ const newFlower = (type, o = {}) => ({
 const defaults = () => ({
   container: 'paper',
   shape: 'round',
+  bg: '#fbe6ea',
   locks: { container: false, shape: false, ribbon: false, flowers: false },
   flowers: [],
   selectedId: null,
@@ -68,7 +69,7 @@ controls.maxPolarAngle = Math.PI * 0.62;
 controls.autoRotateSpeed = 1.2;
 
 function resetCamera() {
-  const basket = state.container === 'basket';
+  const basket = state.container === 'basket' || state.paper.style === 'tray';
   controls.target.set(0, basket ? 1.35 : 1.45, 0);
   const f = camera.aspect < 1.25 ? Math.min(1.9, 1.25 / camera.aspect) : 1;
   camera.position.set(0, controls.target.y + (basket ? 1.65 : 1.15) * f, (basket ? 6.6 : 6.8) * f);
@@ -171,12 +172,32 @@ function renderSummary() {
   $('#summary').textContent = (lines.length ? lines.join('\n') : '(ยังไม่มีดอกไม้)') + '\n—\n' + cont + (state.ribbon.on ? `\nริบบิ้น ${state.ribbon.color}` : '');
 }
 
+const BGS = ['#fbe6ea', '#ffffff', '#fff4e0', '#dfeadc', '#dcecf7', '#e8e0f5', '#d8d2cc', '#2b2630', '#111111'];
+function bgGradient(hex) {
+  const c = new THREE.Color(hex), h = {}; c.getHSL(h);
+  const mk = (l) => '#' + new THREE.Color().setHSL(h.h, h.s, Math.max(0, Math.min(1, l))).getHexString();
+  const dark = h.l < 0.35;
+  return { inner: mk(dark ? h.l * 1.5 : Math.min(1, h.l + (1 - h.l) * 0.6)), mid: hex, outer: mk(dark ? h.l * 0.6 : h.l * 0.93), dark };
+}
+function applyBg() {
+  const g = bgGradient(state.bg || '#fbe6ea');
+  $('#stage').style.background = `radial-gradient(circle at 50% 35%, ${g.inner} 0%, ${g.mid} 60%, ${g.outer} 100%)`;
+  $('.hint').style.color = g.dark ? '#bbb' : '';
+  const t = document.querySelector('meta[name=theme-color]');
+}
+function renderBgSwatches() {
+  const el = $('#bgSwatches'); el.innerHTML = '';
+  BGS.forEach((c) => { const i = document.createElement('i'); i.style.background = c; i.onclick = () => { state.bg = c; applyBg(); save(); $('#bgColor').value = c; }; el.appendChild(i); });
+}
+
 function syncControls() {
+  $('#bgColor').value = state.bg || '#fbe6ea';
   document.querySelectorAll('#locks input').forEach((i) => (i.checked = !!state.locks[i.dataset.k]));
   document.querySelectorAll('#containerSeg button').forEach((b) => b.classList.toggle('on', b.dataset.v === state.container));
   document.querySelectorAll('#shapeSeg button').forEach((b) => b.classList.toggle('on', b.dataset.v === state.shape));
   $('#paperSec').hidden = state.container !== 'paper';
   $('#basketSec').hidden = state.container !== 'basket';
+  $('#pFoam').value = state.basket.foamColor; $('#pFoamRow').hidden = state.paper.style !== 'tray';
   $('#pStyle').value = state.paper.style; $('#bStyle').value = state.basket.style;
   $('#pOuter').value = state.paper.outer; $('#pInner').value = state.paper.inner; $('#pPattern').value = state.paper.pattern;
   $('#pBack').checked = state.paper.back; $('#pBackColor').value = state.paper.backColor; $('#pBackRow').hidden = !state.paper.back;
@@ -192,7 +213,7 @@ document.querySelectorAll('#containerSeg button').forEach((b) => {
 });
 document.querySelectorAll('#shapeSeg button').forEach((b) => { b.onclick = () => { state.shape = b.dataset.v; commit(); }; });
 const bindInput = (sel_, apply) => $(sel_).addEventListener('input', (e) => { apply(e.target.type === 'checkbox' ? e.target.checked : e.target.value); commit(false); renderSummary(); syncControls(); });
-bindInput('#pStyle', (v) => (state.paper.style = v));
+bindInput('#pStyle', (v) => { state.paper.style = v; resetCamera(); });
 bindInput('#bStyle', (v) => (state.basket.style = v));
 bindInput('#pOuter', (v) => (state.paper.outer = v));
 bindInput('#pInner', (v) => (state.paper.inner = v));
@@ -201,10 +222,12 @@ bindInput('#pBack', (v) => (state.paper.back = v));
 bindInput('#pBackColor', (v) => (state.paper.backColor = v));
 bindInput('#bColor', (v) => (state.basket.basketColor = v));
 bindInput('#bFoam', (v) => (state.basket.foamColor = v));
+bindInput('#pFoam', (v) => (state.basket.foamColor = v));
 bindInput('#bHandle', (v) => (state.basket.handle = v));
 bindInput('#rOn', (v) => (state.ribbon.on = v));
 bindInput('#rColor', (v) => (state.ribbon.color = v));
 
+$('#bgColor').addEventListener('input', (e) => { state.bg = e.target.value; applyBg(); save(); });
 $('#edColor').addEventListener('input', (e) => { const f = sel(); if (f) { f.color = e.target.value; bouquet.sync(state); save(); renderList(); renderSummary(); } });
 $('#edColor2').addEventListener('input', (e) => { const f = sel(); if (f) { f.color2 = e.target.value; bouquet.sync(state); save(); } });
 $('#edScale').addEventListener('input', (e) => { const f = sel(); if (f) { f.scale = +e.target.value; bouquet.sync(state); save(); } });
@@ -220,7 +243,12 @@ $('#autoRot').onclick = () => { controls.autoRotate = !controls.autoRotate; $('#
 $('#resetCam').onclick = resetCamera;
 $('#shot').onclick = () => {
   renderer.render(scene, camera);
-  canvas.toBlob((b) => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'bouquet.png'; a.click(); });
+  const out = document.createElement('canvas'); out.width = canvas.width; out.height = canvas.height;
+  const x = out.getContext('2d'), gg = bgGradient(state.bg || '#fbe6ea');
+  const grad = x.createRadialGradient(out.width / 2, out.height * 0.35, 0, out.width / 2, out.height * 0.35, Math.max(out.width, out.height) * 0.75);
+  grad.addColorStop(0, gg.inner); grad.addColorStop(0.6, gg.mid); grad.addColorStop(1, gg.outer);
+  x.fillStyle = grad; x.fillRect(0, 0, out.width, out.height); x.drawImage(canvas, 0, 0);
+  out.toBlob((b) => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'bouquet.png'; a.click(); });
 };
 
 /* presets */
@@ -318,7 +346,7 @@ function randomIdea() {
   }
   if (!L.shape) state.shape = Math.random() < 0.5 ? 'round' : 'flat';
   if (!L.container) {
-    state.paper = { style: pick(['cone', 'cone', 'wide', 'tube', 'frill']), outer: pal.paper[0], inner: pal.paper[1], pattern: pick(['plain', 'plain', 'dots', 'stripes', 'hearts', 'check']), back: state.shape === 'round' && Math.random() < 0.7, backColor: pal.back };
+    state.paper = { style: pick(['cone', 'cone', 'wide', 'tube', 'frill', 'tray']), outer: pal.paper[0], inner: pal.paper[1], pattern: pick(['plain', 'plain', 'dots', 'stripes', 'hearts', 'check']), back: state.shape === 'round' && Math.random() < 0.7, backColor: pal.back };
     state.basket = { style: pick(['round', 'tall', 'bowl', 'square']), basketColor: pick(['#b98a55', '#c9a06a', '#8d6a42', '#e4cfa3']), foamColor: pick(['#8bb56a', '#8bb56a', '#d9b8c4']), handle: Math.random() < 0.6 };
   }
   if (!L.ribbon) state.ribbon = { on: Math.random() < 0.85, color: pal.rib };
@@ -347,6 +375,7 @@ $('#random2').onclick = randomIdea;
 
 /* ---------- boot ---------- */
 resize();
+applyBg(); renderBgSwatches();
 thumbs = makeThumbnails();
 renderPalette();
 resetCamera();

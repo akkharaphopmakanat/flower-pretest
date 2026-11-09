@@ -6,6 +6,7 @@ export const PAPER_STYLES = {
   cone: { H: 1.5, R0: 0.12, R1: 1.1, p: 0.8, wave: 1, pleat: 0.045 },
   wide: { H: 1.4, R0: 0.15, R1: 1.35, p: 1.25, wave: 1.2, pleat: 0.05 },
   tube: { H: 1.5, R0: 0.3, R1: 0.82, p: 0.4, wave: 0.8, pleat: 0.03 },
+  tray: { H: 0.75, R0: 0.9, R1: 1.3, p: 0.9, wave: 1.3, pleat: 0.05, tray: true },
   frill: { H: 1.5, R0: 0.12, R1: 1.15, p: 0.8, wave: 2.4, pleat: 0.09 },
 };
 export const BASKET_STYLES = {
@@ -134,7 +135,8 @@ function closeSeam(g, segT, segA) {
 /* ---------- containers ---------- */
 function buildPaper(st, flat) {
   const g = new THREE.Group();
-  if (flat) g.scale.set(FLAT.x, 1, FLAT.z);
+  if (PS.tray) g.scale.set(flat ? FLAT.x : 1.15, 1, flat ? 0.55 : 0.8);
+  else if (flat) g.scale.set(FLAT.x, 1, FLAT.z);
   const noise = noiseTex();
   const topMain = (th) => PS.H - 0.1 * Math.cos(th) + PS.wave * (0.06 * Math.sin(5 * th + 1) + 0.04 * Math.sin(11 * th)) + (PS.wave > 2 ? 0.05 * Math.sin(19 * th) : 0);
   const geo = wrapGeometry({
@@ -149,7 +151,17 @@ function buildPaper(st, flat) {
   const innerMat = new THREE.MeshStandardMaterial({ color: st.inner, roughness: 0.85, bumpMap: noise, bumpScale: 0.6, side: THREE.BackSide });
   g.add(new THREE.Mesh(geo, outerMat), new THREE.Mesh(geo, innerMat));
 
-  if (st.back) {
+  if (PS.tray) {
+    const bot = new THREE.Mesh(new THREE.CircleGeometry(PS.R0, 48), innerMat.clone());
+    bot.material.side = THREE.DoubleSide;
+    bot.rotation.x = -Math.PI / 2; bot.position.y = 0.01;
+    g.add(bot);
+    const fm = new THREE.MeshStandardMaterial({ map: foamTexture(st.foamColor || '#8bb56a'), roughness: 1 });
+    const foam = new THREE.Mesh(new THREE.CylinderGeometry(coneRadius(PS.H - 0.2) - 0.06, PS.R0 - 0.05, PS.H - 0.22, 48), fm);
+    foam.position.y = (PS.H - 0.22) / 2 + 0.03;
+    g.add(foam);
+  }
+  if (st.back && !PS.tray) {
     const half = 1.9;
     const bg = wrapGeometry({
       a0: Math.PI - half, a1: Math.PI + half, y0: 0.25, pleat: 0.08, segA: 120,
@@ -207,12 +219,13 @@ function buildBasket(st, flat) {
 }
 
 function buildRibbon(st, mode, flat) {
-  const fz = flat ? (mode === 'paper' ? FLAT.z : FLAT.z + 0.15) : 1, fx = flat ? FLAT.x : 1;
+  const trayP = mode === 'paper' && PS.tray;
+  const fz = flat ? (trayP ? 0.55 : mode === 'paper' ? FLAT.z : FLAT.z + 0.15) : trayP ? 0.8 : 1, fx = flat ? FLAT.x : trayP ? 1.15 : 1;
   const g = new THREE.Group();
   const mat = new THREE.MeshStandardMaterial({ color: st.color, roughness: 0.4, side: THREE.DoubleSide });
   let bowPos, tilt;
   if (mode === 'paper') {
-    const y = 0.5;
+    const y = PS.tray ? PS.H * 0.45 : 0.5;
     const band = new THREE.Mesh(new THREE.CylinderGeometry(coneRadius(y + 0.07) + 0.03, coneRadius(y - 0.07) + 0.03, 0.14, 56, 1, true), mat);
     band.position.y = y; band.scale.set(fx, 1, fz);
     g.add(band);
@@ -275,13 +288,16 @@ export class Bouquet {
     const mains = flowers.filter((f) => !TYPES[f.type].greens);
     const greens = flowers.filter((f) => TYPES[f.type].greens);
     const n = mains.length;
-    const paper = mode === 'paper';
+    const paper = mode === 'paper' && !PS.tray, tray = mode === 'paper' && PS.tray;
     const flat = shape === 'flat';
-    const top = paper ? 2.3 : 2.1, drop = paper ? 0.75 : 0.6;
+    const top = tray ? 1.75 : paper ? 2.3 : 2.1, drop = paper ? 0.75 : tray ? 0.55 : 0.6;
     this.top = top; this.flat = flat;
     const c = n > 1 ? Math.min(0.42, 0.82 / Math.sqrt(n - 1)) : 0;
     const cf = n > 1 ? Math.min(0.5, 1.0 / Math.sqrt(n - 1)) : 0;
     const rad = (f) => (TYPES[f.type].group === 'flower' ? 0.3 : 0.15) * (TYPES[f.type].scale || 1) * (f.scale || 1);
+    const radLeaf = (f) => 0.22 * (f.scale || 1);
+    const leafNeed = (l, m) => 0.5 * (radLeaf(l.f) + rad(m.f));
+    const FV = 0.4; // flat: greens' v-plane is offset from the flowers' v-plane
 
     // 1. auto positions in layout plane (u,v)
     const P = mains.map((f, i) => {
@@ -292,30 +308,53 @@ export class Bouquet {
       const man = f.man && f.man[flat ? 'flat' : 'round'];
       return { f, u, v, fixed: !!man, ...(man ? { u: man[0], v: man[1] } : {}), u0: u, v0: v };
     });
-    // 2. manual moves push neighbours away (never demanding more room than the auto layout had)
-    if (P.some((p) => p.fixed)) {
-      const d0 = P.map((a, i) => P.map((b, j) => {
-        const base = Math.hypot(a.u0 - b.u0, a.v0 - b.v0);
-        return Math.min(0.55 * (rad(a.f) + rad(b.f)), base);
-      }));
+    const G = greens.map((f, i) => {
+      const man = f.man && f.man[flat ? 'flat' : 'round'];
+      let u, v;
+      if (flat) {
+        const a = THREE.MathUtils.degToRad(12 + (greens.length > 1 ? (i / (greens.length - 1)) * 156 : 78));
+        u = Math.cos(a) * 1.45; v = Math.sin(a) * 0.85 - FV;
+      } else {
+        const phi = ((i + 0.5) / greens.length) * Math.PI * 2 + 0.4, rho = paper ? 0.82 : tray ? 1.0 : 0.78;
+        u = rho * Math.cos(phi); v = rho * Math.sin(phi);
+      }
+      if (man) { u = man[0]; v = flat ? man[1] - FV : man[1]; }
+      return { f, u, v, fixed: !!man };
+    });
+    const push = (a, b, need, moveA, moveB) => {
+      let dx = b.u - a.u, dy = b.v - a.v, d = Math.hypot(dx, dy);
+      if (d >= need) return;
+      if (d < 1e-4) { dx = 1; dy = 0; d = 1; }
+      const amt = need - d, nx = dx / d, ny = dy / d;
+      if (moveA && moveB) { a.u -= nx * amt / 2; a.v -= ny * amt / 2; b.u += nx * amt / 2; b.v += ny * amt / 2; }
+      else if (moveB) { b.u += nx * amt; b.v += ny * amt; }
+      else if (moveA) { a.u -= nx * amt; a.v -= ny * amt; }
+    };
+    const fixedLeaves = G.filter((g) => g.fixed);
+    // 2. manual moves push neighbouring flowers away (never demanding more room than the auto layout had)
+    if (P.some((p) => p.fixed) || fixedLeaves.length) {
+      const d0 = P.map((a) => P.map((b) => Math.min(0.55 * (rad(a.f) + rad(b.f)), Math.hypot(a.u0 - b.u0, a.v0 - b.v0))));
       for (let it = 0; it < 40; it++) {
         for (let i = 0; i < P.length; i++) for (let j = i + 1; j < P.length; j++) {
           const a = P[i], b = P[j];
           if (a.fixed && b.fixed) continue;
-          let dx = b.u - a.u, dy = b.v - a.v, d = Math.hypot(dx, dy);
-          const need = d0[i][j];
-          if (d >= need) continue;
-          if (d < 1e-4) { dx = 1; dy = 0; d = 1; }
-          const push = need - d;
-          const nx = dx / d, ny = dy / d;
-          if (a.fixed) { b.u += nx * push; b.v += ny * push; }
-          else if (b.fixed) { a.u -= nx * push; a.v -= ny * push; }
-          else { a.u -= nx * push / 2; a.v -= ny * push / 2; b.u += nx * push / 2; b.v += ny * push / 2; }
+          push(a, b, d0[i][j], !a.fixed, !b.fixed);
         }
+        for (const l of fixedLeaves) for (const m of P) if (!m.fixed) push(l, m, leafNeed(l, m), false, true);
         for (const p of P) if (!p.fixed) {
           if (flat) { p.u = Math.max(-1.3, Math.min(1.3, p.u)); p.v = Math.max(-0.9, Math.min(0.9, p.v)); }
           else { const r = Math.hypot(p.u, p.v); if (r > 0.95) { p.u *= 0.95 / r; p.v *= 0.95 / r; } }
         }
+      }
+    }
+    // 2b. free leaves get out of the way of flowers and of each other
+    const free = G.filter((g) => !g.fixed);
+    for (let it = 0; it < 40 && free.length; it++) {
+      for (const g of free) {
+        for (const m of P) push(m, g, leafNeed(g, m), false, true);
+        for (const h of G) if (h !== g) push(h, g, 0.5 * (radLeaf(g.f) + radLeaf(h.f)), false, true);
+        if (flat) { g.u = Math.max(-1.9, Math.min(1.9, g.u)); g.v = Math.max(-1.4, Math.min(0.9, g.v)); }
+        else { const r = Math.hypot(g.u, g.v), lr = 1.2; if (r > lr) { g.u *= lr / r; g.v *= lr / r; } }
       }
     }
     // 3. to 3D
@@ -330,19 +369,11 @@ export class Bouquet {
         slots.set(f.id, { head: new THREE.Vector3(p.u, y, p.v) });
       }
     }
-    greens.forEach((f, i) => {
-      const man = f.man && f.man[flat ? 'flat' : 'round'], dy = f.dy || 0;
-      if (flat) {
-        const a = THREE.MathUtils.degToRad(12 + (greens.length > 1 ? (i / (greens.length - 1)) * 156 : 78));
-        const u = man ? man[0] : Math.cos(a) * 1.45, v = man ? man[1] : Math.sin(a) * 0.85;
-        slots.set(f.id, { head: new THREE.Vector3(u, top - 0.5 + v + dy, -0.2), green: true });
-        return;
-      }
-      const phi = ((i + 0.5) / greens.length) * Math.PI * 2 + 0.4;
-      const rho = paper ? 0.82 : 0.78;
-      const u = man ? man[0] : rho * Math.cos(phi), v = man ? man[1] : rho * Math.sin(phi);
-      slots.set(f.id, { head: new THREE.Vector3(u, (paper ? 1.7 : 1.25) + dy, v), green: true });
-    });
+    for (const g of G) {
+      const dy = g.f.dy || 0;
+      if (flat) slots.set(g.f.id, { head: new THREE.Vector3(g.u, top - 0.5 + g.v + FV + dy, -0.2), green: true });
+      else slots.set(g.f.id, { head: new THREE.Vector3(g.u, (paper ? 1.7 : tray ? 1.1 : 1.25) + dy, g.v), green: true });
+    }
     return slots;
   }
 
@@ -358,13 +389,13 @@ export class Bouquet {
     const rand = mulberry32(f.seed * 13 + 5);
     const head = slot.head;
     let pts;
-    if (mode === 'paper') {
+    if (mode === 'paper' && !PS.tray) {
       const g = new THREE.Vector3((rand() - 0.5) * 0.08, 0.4, (rand() - 0.5) * 0.08);
       const b = new THREE.Vector3((rand() - 0.5) * 0.05, -0.28, (rand() - 0.5) * 0.05);
       const mid = g.clone().lerp(head, 0.5).add(new THREE.Vector3((rand() - 0.5) * 0.08, 0, (rand() - 0.5) * 0.08));
       pts = [b, g, mid, head];
     } else {
-      const s = new THREE.Vector3(head.x * 0.45, BS.H - 0.1, head.z * 0.45);
+      const s = new THREE.Vector3(head.x * 0.45, (mode === 'paper' ? PS.H - 0.12 : BS.H - 0.1), head.z * 0.45);
       const mid = s.clone().lerp(head, 0.5).add(new THREE.Vector3((rand() - 0.5) * 0.06, 0, (rand() - 0.5) * 0.06));
       pts = [s, mid, head];
     }
@@ -377,11 +408,12 @@ export class Bouquet {
     const mode = state.container, shape = state.shape || 'round', flat = shape === 'flat';
     this.markerHolder.parent?.remove(this.markerHolder);
     // container
-    const ck = JSON.stringify([mode, flat, mode === 'paper' ? [state.paper] : [state.basket]]);
+    const pp = { ...state.paper, foamColor: state.basket.foamColor };
+    const ck = JSON.stringify([mode, flat, mode === 'paper' ? [pp] : [state.basket]]);
     if (ck !== this.containerKey) {
       this.containerKey = ck;
       if (this.containerGroup) { this.root.remove(this.containerGroup); disposeTree(this.containerGroup); }
-      this.containerGroup = mode === 'paper' ? buildPaper(state.paper, flat) : buildBasket(state.basket, flat);
+      this.containerGroup = mode === 'paper' ? buildPaper(pp, flat) : buildBasket(state.basket, flat);
       this.containerGroup.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
       this.root.add(this.containerGroup);
     }

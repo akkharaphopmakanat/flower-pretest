@@ -27,6 +27,12 @@
     </div>
 
     <section>
+      <h2>สีพื้นหลัง</h2>
+      <div class="swatches" id="bgSwatches" style="margin:0 0 6px"></div>
+      <label class="field"><span>เลือกสีเอง</span><input type="color" id="bgColor"></label>
+    </section>
+
+    <section>
       <h2>ตัวอย่างช่อ</h2>
       <div class="row wrap" id="presets"></div>
     </section>
@@ -88,7 +94,8 @@
     <section id="paperSec">
       <h2>กระดาษห่อ</h2>
       <label class="field"><span>รูปทรง</span>
-        <select id="pStyle"><option value="cone">กรวย</option><option value="wide">บานกว้าง</option><option value="tube">กระบอก</option><option value="frill">ขอบระบาย</option></select></label>
+        <select id="pStyle"><option value="cone">กรวย</option><option value="wide">บานกว้าง</option><option value="tube">กระบอก</option><option value="frill">ขอบระบาย</option><option value="tray">ถาด</option></select></label>
+      <label class="field" id="pFoamRow"><span>สีโฟม (ถาด)</span><input type="color" id="pFoam"></label>
       <label class="field"><span>สีด้านนอก</span><input type="color" id="pOuter"></label>
       <label class="field"><span>สีด้านใน</span><input type="color" id="pInner"></label>
       <label class="field"><span>ลาย</span>
