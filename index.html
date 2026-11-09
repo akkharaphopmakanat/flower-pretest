@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>จัดดอกไม้ 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }
+</script>
+</head>
+<body>
+<div id="app">
+  <aside id="panel">
+    <h1>🌸 จัดดอกไม้ 3D</h1>
+    <p class="sub">ลองจัดช่อดอกไม้ก่อนทำจริง</p>
+    <button id="random" class="primary">🎲 สุ่มไอเดียช่อดอกไม้</button>
+
+    <section>
+      <h2>ตัวอย่างช่อ</h2>
+      <div class="row wrap" id="presets"></div>
+    </section>
+
+    <section>
+      <h2>ภาชนะ / การห่อ</h2>
+      <div class="seg" id="containerSeg">
+        <button data-v="paper">ห่อกระดาษ</button>
+        <button data-v="basket">ตะกร้า + โฟม</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>ทรงช่อ</h2>
+      <div class="seg" id="shapeSeg">
+        <button data-v="round">ช่อกลม</button>
+        <button data-v="flat">ช่อแบน</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>เพิ่มดอกไม้</h2>
+      <div id="palette"></div>
+    </section>
+
+    <section>
+      <h2>ในช่อ <span id="count" class="badge">0</span></h2>
+      <div id="list"></div>
+      <div class="row wrap">
+        <button id="shuffle">🔀 สลับตำแหน่ง</button>
+        <button id="allAuto">↺ จัดอัตโนมัติทั้งหมด</button>
+        <button id="clear" class="ghost">ล้างทั้งหมด</button>
+      </div>
+    </section>
+
+    <section id="editor" hidden>
+      <h2>แก้ไขดอกที่เลือก: <span id="edName"></span></h2>
+      <label class="field"><span id="colorLabel">สี</span>
+        <input type="color" id="edColor"></label>
+      <div class="swatches" id="edSwatches"></div>
+      <label class="field" id="color2Row"><span id="color2Label">สีกลางดอก</span>
+        <input type="color" id="edColor2"></label>
+      <label class="field"><span>ขนาด</span>
+        <input type="range" id="edScale" min="0.6" max="1.6" step="0.05"></label>
+      <div id="manualRow">
+        <label class="field"><span>ความสูง</span>
+          <input type="range" id="edDy" min="-0.4" max="0.4" step="0.02"></label>
+        <p class="note">💡 ลากดอกไม้ในภาพเพื่อย้ายเอง ดอกอื่นจะขยับหลบให้อัตโนมัติ</p>
+        <button id="edAuto">↺ กลับตำแหน่งอัตโนมัติ</button>
+      </div>
+      <div class="row wrap">
+        <button id="edDup">⧉ ทำซ้ำ</button>
+        <button id="edPrev">◀ ถอย</button>
+        <button id="edNext">ถัดไป ▶</button>
+        <button id="edDel" class="danger">🗑 ลบ</button>
+      </div>
+    </section>
+
+    <section id="paperSec">
+      <h2>กระดาษห่อ</h2>
+      <label class="field"><span>รูปทรง</span>
+        <select id="pStyle"><option value="cone">กรวย</option><option value="wide">บานกว้าง</option><option value="tube">กระบอก</option><option value="frill">ขอบระบาย</option></select></label>
+      <label class="field"><span>สีด้านนอก</span><input type="color" id="pOuter"></label>
+      <label class="field"><span>สีด้านใน</span><input type="color" id="pInner"></label>
+      <label class="field"><span>ลาย</span>
+        <select id="pPattern">
+          <option value="plain">เรียบ</option><option value="dots">ลายจุด</option>
+          <option value="stripes">ลายทาง</option><option value="hearts">ลายหัวใจ</option>
+          <option value="check">ลายตาราง</option>
+        </select></label>
+      <label class="field"><span>กระดาษแผ่นหลัง</span><input type="checkbox" id="pBack"></label>
+      <label class="field" id="pBackRow"><span>สีแผ่นหลัง</span><input type="color" id="pBackColor"></label>
+    </section>
+
+    <section id="basketSec" hidden>
+      <h2>ตะกร้า</h2>
+      <label class="field"><span>รูปทรง</span>
+        <select id="bStyle"><option value="round">กลม</option><option value="tall">ทรงสูง</option><option value="bowl">ทรงชาม</option><option value="square">สี่เหลี่ยม</option></select></label>
+      <label class="field"><span>สีตะกร้า</span><input type="color" id="bColor"></label>
+      <label class="field"><span>สีโฟมปักดอกไม้</span><input type="color" id="bFoam"></label>
+      <label class="field"><span>หูหิ้ว</span><input type="checkbox" id="bHandle"></label>
+    </section>
+
+    <section>
+      <h2>ริบบิ้น</h2>
+      <label class="field"><span>ผูกโบว์</span><input type="checkbox" id="rOn"></label>
+      <label class="field"><span>สีริบบิ้น</span><input type="color" id="rColor"></label>
+    </section>
+
+    <section>
+      <h2>สรุปรายการ</h2>
+      <pre id="summary"></pre>
+      <button id="copySummary">📋 คัดลอกรายการ</button>
+    </section>
+  </aside>
+
+  <main id="stage">
+    <canvas id="c"></canvas>
+    <div class="toolbar">
+      <button id="random2">🎲 สุ่ม</button>
+      <button id="autoRot">⟳ หมุนอัตโนมัติ</button>
+      <button id="resetCam">⌖ รีเซ็ตมุมกล้อง</button>
+      <button id="shot">📷 บันทึกรูป</button>
+    </div>
+    <div class="hint">ลากเพื่อหมุน · เลื่อนเพื่อซูม · คลิกดอกไม้เพื่อเลือก</div>
+  </main>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
