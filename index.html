@@ -2,7 +2,9 @@
 <html lang="th">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#fdf3f3">
 <title>จัดดอกไม้ 3D</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700&display=swap" rel="stylesheet">
@@ -17,6 +19,12 @@
     <h1>🌸 จัดดอกไม้ 3D</h1>
     <p class="sub">ลองจัดช่อดอกไม้ก่อนทำจริง</p>
     <button id="random" class="primary">🎲 สุ่มไอเดียช่อดอกไม้</button>
+    <div id="locks"><span>🔒 ล็อกไว้ไม่สุ่ม:</span>
+      <label><input type="checkbox" data-k="container"> ภาชนะ (กระดาษ/ตะกร้า)</label>
+      <label><input type="checkbox" data-k="shape"> ทรงช่อ</label>
+      <label><input type="checkbox" data-k="ribbon"> ริบบิ้น</label>
+      <label><input type="checkbox" data-k="flowers"> ดอกไม้</label>
+    </div>
 
     <section>
       <h2>ตัวอย่างช่อ</h2>
@@ -118,12 +126,13 @@
   <main id="stage">
     <canvas id="c"></canvas>
     <div class="toolbar">
+      <button id="togglePanel" class="mobileOnly">⤢ ขยายภาพ</button>
       <button id="random2">🎲 สุ่ม</button>
       <button id="autoRot">⟳ หมุนอัตโนมัติ</button>
       <button id="resetCam">⌖ รีเซ็ตมุมกล้อง</button>
       <button id="shot">📷 บันทึกรูป</button>
     </div>
-    <div class="hint">ลากเพื่อหมุน · เลื่อนเพื่อซูม · คลิกดอกไม้เพื่อเลือก</div>
+    <div class="hint"><span class="mouse">ลากเพื่อหมุน · เลื่อนเพื่อซูม · คลิกดอกไม้เพื่อเลือก · ลากดอกไม้เพื่อย้าย</span><span class="touch">ลากนิ้วหมุน · บีบนิ้วซูม · แตะดอกไม้เพื่อเลือก · ลากดอกไม้เพื่อย้าย</span></div>
   </main>
 </div>
 <script type="module" src="js/main.js"></script>

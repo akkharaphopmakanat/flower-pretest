@@ -18,6 +18,7 @@ const newFlower = (type, o = {}) => ({
 const defaults = () => ({
   container: 'paper',
   shape: 'round',
+  locks: { container: false, shape: false, ribbon: false, flowers: false },
   flowers: [],
   selectedId: null,
   paper: { style: 'cone', outer: '#f4b6c2', inner: '#ffffff', pattern: 'plain', back: true, backColor: '#fff3e0' },
@@ -28,13 +29,13 @@ const defaults = () => ({
 let state = defaults();
 try {
   const saved = JSON.parse(localStorage.getItem(KEY));
-  if (saved && Array.isArray(saved.flowers)) state = { ...defaults(), ...saved, paper: { ...defaults().paper, ...saved.paper }, basket: { ...defaults().basket, ...saved.basket }, ribbon: { ...defaults().ribbon, ...saved.ribbon } };
+  if (saved && Array.isArray(saved.flowers)) state = { ...defaults(), ...saved, paper: { ...defaults().paper, ...saved.paper }, basket: { ...defaults().basket, ...saved.basket }, ribbon: { ...defaults().ribbon, ...saved.ribbon }, locks: { ...defaults().locks, ...saved.locks } };
 } catch (e) { /* ignore */ }
 
 /* ---------- three scene ---------- */
 const canvas = $('#c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, innerWidth < 900 ? 1.75 : 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
@@ -49,7 +50,7 @@ scene.environmentIntensity = 0.7;
 const sun = new THREE.DirectionalLight(0xffffff, 2.2);
 sun.position.set(3, 6, 4);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(innerWidth < 900 ? 1024 : 2048, innerWidth < 900 ? 1024 : 2048);
 Object.assign(sun.shadow.camera, { left: -3, right: 3, top: 4, bottom: -2, near: 0.5, far: 20 });
 sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.02;
 scene.add(sun);
@@ -69,7 +70,8 @@ controls.autoRotateSpeed = 1.2;
 function resetCamera() {
   const basket = state.container === 'basket';
   controls.target.set(0, basket ? 1.35 : 1.45, 0);
-  camera.position.set(0, basket ? 3.0 : 2.6, basket ? 6.6 : 6.8);
+  const f = camera.aspect < 1.25 ? Math.min(1.9, 1.25 / camera.aspect) : 1;
+  camera.position.set(0, controls.target.y + (basket ? 1.65 : 1.15) * f, (basket ? 6.6 : 6.8) * f);
   controls.update();
 }
 
@@ -81,6 +83,9 @@ function resize() {
   camera.aspect = r.width / r.height; camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
+addEventListener('orientationchange', () => setTimeout(() => { resize(); resetCamera(); }, 300));
+$('#togglePanel').onclick = () => { const f = $('#app').classList.toggle('full'); $('#togglePanel').textContent = f ? '⤡ แสดงเมนู' : '⤢ ขยายภาพ'; resize(); };
+if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas.parentElement);
 
 /* ---------- state helpers ---------- */
 function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* ignore */ } }
@@ -167,6 +172,7 @@ function renderSummary() {
 }
 
 function syncControls() {
+  document.querySelectorAll('#locks input').forEach((i) => (i.checked = !!state.locks[i.dataset.k]));
   document.querySelectorAll('#containerSeg button').forEach((b) => b.classList.toggle('on', b.dataset.v === state.container));
   document.querySelectorAll('#shapeSeg button').forEach((b) => b.classList.toggle('on', b.dataset.v === state.shape));
   $('#paperSec').hidden = state.container !== 'paper';
@@ -252,6 +258,7 @@ function pickFlower(e) {
   return null;
 }
 canvas.addEventListener('pointerdown', (e) => {
+  if (!e.isPrimary) { drag = null; down = null; controls.enabled = true; return; }
   down = { x: e.clientX, y: e.clientY, t: performance.now(), id: pickFlower(e) };
   const f = state.flowers.find((q) => q.id === down.id);
   // only flowers that are not greenery can be moved by hand
@@ -284,7 +291,7 @@ addEventListener('pointerup', (e) => {
   const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5 || performance.now() - down.t > 500;
   const id = down.id; down = null;
   if (moved) return;
-  if (id) { state.selectedId = id; commit(); }
+  if (id) { state.selectedId = id; commit(); if (matchMedia('(max-width:900px)').matches) $('#editor').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
   else if (state.selectedId) { state.selectedId = null; commit(); }
 });
 
@@ -304,29 +311,37 @@ const PALETTES = [
 ];
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 function randomIdea() {
+  const L = state.locks;
   const pal = pick(PALETTES);
-  state.container = Math.random() < 0.75 ? 'paper' : 'basket';
-  state.shape = Math.random() < 0.5 ? 'round' : 'flat';
-  state.paper = { style: pick(['cone', 'cone', 'wide', 'tube', 'frill']), outer: pal.paper[0], inner: pal.paper[1], pattern: pick(['plain', 'plain', 'dots', 'stripes', 'hearts', 'check']), back: state.shape === 'round' && Math.random() < 0.7, backColor: pal.back };
-  state.basket = { style: pick(['round', 'tall', 'bowl', 'square']), basketColor: pick(['#b98a55', '#c9a06a', '#8d6a42', '#e4cfa3']), foamColor: pick(['#8bb56a', '#8bb56a', '#d9b8c4']), handle: Math.random() < 0.6 };
-  state.ribbon = { on: Math.random() < 0.85, color: pal.rib };
-  const mainTypes = [...new Set([pick(['rose', 'rose', 'tulip', 'lily']), pick(['rose', 'tulip', 'daisy', 'sunflower', 'lily']), Math.random() < 0.3 ? 'sunflower' : 'rose'])];
-  const total = 8 + Math.floor(Math.random() * 8);
-  const list = [];
-  const nMain = Math.round(total * 0.6), nFill = Math.round(total * 0.2), nLeaf = total - nMain - nFill;
-  for (let i = 0; i < nMain; i++) {
-    const t = pick(mainTypes);
-    list.push(newFlower(t, t === 'sunflower' ? {} : t === 'daisy' ? { color: '#ffffff' } : { color: pick(pal.f) }));
+  if (!L.container) {
+    state.container = Math.random() < 0.75 ? 'paper' : 'basket';
   }
-  const fills = [pick(['gypsophila', 'lavender']), pick(['gypsophila', 'gypsophila', 'lavender'])];
-  for (let i = 0; i < nFill; i++) list.push(newFlower(pick(fills)));
-  const leaves = ['eucalyptus', 'fern', 'ruscus', 'monstera'].sort(() => Math.random() - 0.5).slice(0, 2);
-  for (let i = 0; i < Math.max(2, nLeaf); i++) list.push(newFlower(pick(leaves)));
-  list.sort(() => Math.random() - 0.5);
-  state.flowers = list;
-  state.selectedId = null;
+  if (!L.shape) state.shape = Math.random() < 0.5 ? 'round' : 'flat';
+  if (!L.container) {
+    state.paper = { style: pick(['cone', 'cone', 'wide', 'tube', 'frill']), outer: pal.paper[0], inner: pal.paper[1], pattern: pick(['plain', 'plain', 'dots', 'stripes', 'hearts', 'check']), back: state.shape === 'round' && Math.random() < 0.7, backColor: pal.back };
+    state.basket = { style: pick(['round', 'tall', 'bowl', 'square']), basketColor: pick(['#b98a55', '#c9a06a', '#8d6a42', '#e4cfa3']), foamColor: pick(['#8bb56a', '#8bb56a', '#d9b8c4']), handle: Math.random() < 0.6 };
+  }
+  if (!L.ribbon) state.ribbon = { on: Math.random() < 0.85, color: pal.rib };
+  if (!L.flowers) {
+    const mainTypes = [...new Set([pick(['rose', 'rose', 'tulip', 'lily', 'peony', 'carnation']), pick(['rose', 'tulip', 'daisy', 'sunflower', 'lily', 'hydrangea', 'gerbera', 'cosmos', 'peony']), Math.random() < 0.3 ? 'sunflower' : 'rose'])];
+    const total = 8 + Math.floor(Math.random() * 8);
+    const list = [];
+    const nMain = Math.round(total * 0.6), nFill = Math.round(total * 0.2), nLeaf = total - nMain - nFill;
+    for (let i = 0; i < nMain; i++) {
+      const t = pick(mainTypes);
+      list.push(newFlower(t, t === 'sunflower' ? {} : t === 'daisy' ? { color: '#ffffff' } : t === 'gerbera' ? {} : { color: pick(pal.f) }));
+    }
+    const fills = [pick(['gypsophila', 'lavender']), pick(['gypsophila', 'gypsophila', 'lavender'])];
+    for (let i = 0; i < nFill; i++) list.push(newFlower(pick(fills)));
+    const leaves = ['eucalyptus', 'fern', 'ruscus', 'monstera', 'palm', 'ivy', 'salal', 'grass'].sort(() => Math.random() - 0.5).slice(0, 2);
+    for (let i = 0; i < Math.max(2, nLeaf); i++) list.push(newFlower(pick(leaves)));
+    list.sort(() => Math.random() - 0.5);
+    state.flowers = list;
+    state.selectedId = null;
+  }
   resetCamera(); commit();
 }
+document.querySelectorAll('#locks input').forEach((i) => i.addEventListener('change', () => { state.locks[i.dataset.k] = i.checked; save(); }));
 $('#random').onclick = randomIdea;
 $('#random2').onclick = randomIdea;
 

@@ -398,18 +398,202 @@ function buildMonstera({ color, rand }) {
   return g;
 }
 
+/* ---------- more flowers ---------- */
+function buildCarnation({ color, rand }) {
+  const g = new THREE.Group();
+  const rings = [
+    { n: 6, tilt: 0.15, len: 0.16, w: 0.17, y: 0.02, sh: 0.8 }, { n: 8, tilt: 0.4, len: 0.2, w: 0.2, y: 0, sh: 0.88 },
+    { n: 9, tilt: 0.7, len: 0.24, w: 0.23, y: -0.02, sh: 0.96 }, { n: 10, tilt: 1.0, len: 0.26, w: 0.25, y: -0.04, sh: 1.04 },
+    { n: 11, tilt: 1.3, len: 0.26, w: 0.26, y: -0.05, sh: 1.08 },
+  ];
+  rings.forEach((d, k) => {
+    const geo = petalGeometry({ length: d.len, width: d.w, bend: 0.25, cup: 0.3, round: 0.4, wave: 0.9, grad: [0.8, 1.1], segU: 6, segV: 6 });
+    ringPetals(g, geo, petalMat(tint(color, d.sh)), d.n, { tilt: d.tilt, y: d.y, r: 0.02 + k * 0.012, yaw0: k * 0.7, rand, tj: 0.2 });
+  });
+  g.add(mesh(new THREE.CylinderGeometry(0.05, 0.03, 0.14, 8), new THREE.MeshStandardMaterial({ color: '#5d8f45', roughness: 0.7 }), 0, -0.09, 0));
+  g.userData = { ringY: 0.08, ringR: 0.32 };
+  return g;
+}
+
+function buildPeony({ color, rand }) {
+  const g = new THREE.Group();
+  const defs = [
+    { n: 5, tilt: 0.0, len: 0.18, w: 0.22, bend: -1.0, y: 0.0, r: 0.0, sh: 0.85 }, { n: 6, tilt: 0.1, len: 0.24, w: 0.3, bend: -0.7, y: -0.02, r: 0.02, sh: 0.9 },
+    { n: 8, tilt: 0.3, len: 0.28, w: 0.34, bend: -0.4, y: -0.04, r: 0.05, sh: 0.95 }, { n: 10, tilt: 0.55, len: 0.32, w: 0.38, bend: -0.1, y: -0.06, r: 0.08, sh: 1.0 },
+    { n: 11, tilt: 0.85, len: 0.35, w: 0.42, bend: 0.2, y: -0.08, r: 0.1, sh: 1.05 }, { n: 12, tilt: 1.15, len: 0.36, w: 0.42, bend: 0.45, y: -0.1, r: 0.12, sh: 1.08 },
+  ];
+  defs.forEach((d, k) => {
+    const geo = petalGeometry({ length: d.len, width: d.w, bend: d.bend, cup: 0.7, round: 0.5, wave: 0.6, grad: [0.78, 1.1], segU: 8, segV: 6 });
+    ringPetals(g, geo, petalMat(tint(color, d.sh)), d.n, { tilt: d.tilt, y: d.y, r: d.r, yaw0: k * 0.8, rand, tj: 0.15, sj: 0.12 });
+  });
+  g.add(mesh(new THREE.SphereGeometry(0.05, 10, 8), new THREE.MeshStandardMaterial({ color: GREEN, roughness: 0.7 }), 0, -0.12, 0));
+  g.userData = { ringY: 0.1, ringR: 0.42 };
+  return g;
+}
+
+function buildHydrangea({ color, rand }) {
+  const g = new THREE.Group();
+  const N = 110, R = 0.3;
+  const geo = new THREE.SphereGeometry(0.055, 8, 6); geo.scale(1, 0.4, 1);
+  const inst = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }), N);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), c = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
+  for (let i = 0; i < N; i++) {
+    const t = (i + 0.5) / N, ct = 1 - t, st = Math.sqrt(1 - ct * ct), phi = i * 2.39996;
+    const p = new THREE.Vector3(R * st * Math.cos(phi), R * ct * 0.85, R * st * Math.sin(phi));
+    const n = p.clone().sub(new THREE.Vector3(0, -0.05, 0)).normalize();
+    q.setFromUnitVectors(up, n);
+    const s = 0.8 + rand() * 0.45;
+    m4.compose(p, q, new THREE.Vector3(s, s, s));
+    inst.setMatrixAt(i, m4);
+    c.set(color); const h = {}; c.getHSL(h); c.setHSL(h.h + (rand() - 0.5) * 0.03, h.s, Math.min(1, h.l * (0.85 + rand() * 0.3)));
+    inst.setColorAt(i, c);
+  }
+  g.add(inst);
+  const core = mesh(new THREE.SphereGeometry(R * 0.95, 16, 10), new THREE.MeshStandardMaterial({ color: tint(color, 0.55), roughness: 0.8 }), 0, 0, 0);
+  core.scale.y = 0.8;
+  g.add(core);
+  g.userData = { ringY: 0.12, ringR: 0.42 };
+  return g;
+}
+
+function buildGerbera({ color, color2, rand }) {
+  const g = new THREE.Group();
+  const geo = petalGeometry({ length: 0.3, width: 0.075, bend: 0.1, round: 0.6, grad: [0.85, 1.08], segU: 6, segV: 2 });
+  const mat = petalMat(color);
+  ringPetals(g, geo, mat, 22, { tilt: 1.5, r: 0.07, rand, tj: 0.1 });
+  ringPetals(g, geo, petalMat(tint(color, 0.95)), 22, { tilt: 1.38, y: -0.012, r: 0.07, yaw0: Math.PI / 22, rand, tj: 0.1 });
+  ringPetals(g, geo, petalMat(tint(color, 0.9)), 22, { tilt: 1.26, y: -0.024, r: 0.07, yaw0: Math.PI / 44, rand, tj: 0.1 });
+  const inner = petalGeometry({ length: 0.1, width: 0.035, round: 0.7, segU: 4, segV: 2, grad: [1, 1] });
+  ringPetals(g, inner, petalMat(tint(color2, 1.5)), 18, { tilt: 1.0, y: 0.005, r: 0.04, rand, tj: 0.2 });
+  const disc = mesh(new THREE.SphereGeometry(0.075, 20, 10), new THREE.MeshStandardMaterial({ color: color2, roughness: 0.8 }), 0, 0.005, 0);
+  disc.scale.y = 0.5; g.add(disc);
+  g.userData = { ringY: 0.0, ringR: 0.4 };
+  return g;
+}
+
+function buildCosmos({ color, color2, rand }) {
+  const g = new THREE.Group();
+  const geo = petalGeometry({ length: 0.24, width: 0.17, bend: 0.1, cup: 0.2, round: 0.45, wave: 0.4, grad: [0.8, 1.08], segU: 8, segV: 4 });
+  ringPetals(g, geo, petalMat(color), 8, { tilt: 1.4, r: 0.04, rand, tj: 0.1 });
+  ringPetals(g, geo, petalMat(tint(color, 0.93)), 8, { tilt: 1.3, y: -0.01, r: 0.04, yaw0: Math.PI / 8, rand, tj: 0.1 });
+  const disc = mesh(new THREE.SphereGeometry(0.045, 14, 8), new THREE.MeshStandardMaterial({ color: color2, roughness: 0.8 }), 0, 0.005, 0);
+  disc.scale.y = 0.6; g.add(disc);
+  g.userData = { ringY: 0.0, ringR: 0.32 };
+  return g;
+}
+
+/* ---------- more leaves ---------- */
+function frond({ color, rand, L, curve, N, leafLen, leafW, tilt, sizeMin = 0.3, stem = '#4c7a3b', tipScale = 0.7 }) {
+  const g = new THREE.Group();
+  const axis = new THREE.CatmullRomCurve3([0, 0.3, 0.6, 1].map((t) => axisPoint(t * L, curve)));
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(axis, 12, 0.006, 5), new THREE.MeshStandardMaterial({ color: stem, roughness: 0.8 })));
+  const geo = petalGeometry({ length: leafLen, width: leafW, bend: 0.25, round: 0.8, grad: [0.85, 1.05], segU: 4, segV: 2 });
+  const mats = [leafMat(color), leafMat(tint(color, 0.9))];
+  for (let i = 0; i < N; i++) {
+    const t = 0.08 + (i / (N - 1)) * 0.9;
+    const p = axis.getPointAt(t), tan = axis.getTangentAt(t);
+    const size = sizeMin + (1 - sizeMin) * Math.sin(Math.PI * Math.min(1, t * 0.9 + 0.1));
+    for (const side of [-1, 1]) {
+      const pivot = new THREE.Group();
+      pivot.position.copy(p);
+      pivot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tan);
+      pivot.rotateY(side * Math.PI / 2);
+      const m = new THREE.Mesh(geo, mats[i % 2]);
+      m.rotation.x = tilt; m.scale.set(1, size * (1 - t * 0.5), 1);
+      pivot.add(m); g.add(pivot);
+    }
+  }
+  const tip = new THREE.Mesh(geo, mats[0]);
+  tip.position.copy(axis.getPointAt(1)); tip.scale.setScalar(tipScale);
+  tip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis.getTangentAt(1));
+  g.add(tip);
+  g.userData = { ringY: 0.45, ringR: 0.3, noLeaf: true };
+  return g;
+}
+const buildPalm = (o) => frond({ ...o, L: 1.0, curve: 0.35, N: 16, leafLen: 0.38, leafW: 0.05, tilt: 1.0, sizeMin: 0.5 });
+
+function buildIvy({ color, rand }) {
+  const g = new THREE.Group();
+  const L = 0.85;
+  const axis = new THREE.CatmullRomCurve3([0, 0.3, 0.6, 1].map((t) => new THREE.Vector3(0, L * (t - 0.3 * t * t), L * 0.55 * t * t)));
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(axis, 14, 0.005, 5), new THREE.MeshStandardMaterial({ color: '#5a6b3a', roughness: 0.8 })));
+  const geo = petalGeometry({ length: 0.2, width: 0.2, bend: 0.4, cup: 0.3, round: 0.45, grad: [0.8, 1.05], segU: 6, segV: 4 });
+  const mats = [leafMat(color), leafMat(tint(color, 0.85)), leafMat(tint(color, 1.12))];
+  const N = 13;
+  for (let i = 0; i < N; i++) {
+    const t = 0.1 + (i / (N - 1)) * 0.88;
+    const p = axis.getPointAt(t), tan = axis.getTangentAt(t);
+    const pivot = new THREE.Group();
+    pivot.position.copy(p);
+    pivot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tan);
+    pivot.rotateY(i * Math.PI + rand() * 0.4);
+    const m = new THREE.Mesh(geo, mats[i % 3]);
+    m.rotation.x = 1.1; m.scale.setScalar((1.1 - t * 0.45) * (0.85 + rand() * 0.3));
+    pivot.add(m); g.add(pivot);
+  }
+  g.userData = { ringY: 0.4, ringR: 0.3, noLeaf: true };
+  return g;
+}
+
+function buildSalal({ color, rand }) {
+  const g = new THREE.Group();
+  const L = 0.6;
+  const axis = new THREE.CatmullRomCurve3([0, 0.35, 0.7, 1].map((t) => axisPoint(t * L, 0.4)));
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(axis, 10, 0.007, 5), new THREE.MeshStandardMaterial({ color: '#4a5b30', roughness: 0.8 })));
+  const geo = petalGeometry({ length: 0.34, width: 0.3, bend: 0.4, cup: 0.35, round: 0.5, grad: [0.75, 1.1], segU: 8, segV: 6 });
+  const mat = new THREE.MeshStandardMaterial({ color, vertexColors: true, side: THREE.DoubleSide, roughness: 0.3 });
+  const N = 6;
+  for (let i = 0; i < N; i++) {
+    const t = 0.2 + (i / (N - 1)) * 0.78;
+    const pivot = new THREE.Group();
+    pivot.position.copy(axis.getPointAt(t));
+    pivot.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis.getTangentAt(t));
+    pivot.rotateY(i * Math.PI + 0.4);
+    const m = new THREE.Mesh(geo, mat);
+    m.rotation.x = 0.95; m.scale.setScalar(1.05 - t * 0.35);
+    pivot.add(m); g.add(pivot);
+  }
+  g.userData = { ringY: 0.35, ringR: 0.3, noLeaf: true };
+  return g;
+}
+
+function buildGrass({ color, rand }) {
+  const g = new THREE.Group();
+  const mats = [leafMat(color), leafMat(tint(color, 0.88)), leafMat(tint(color, 1.12))];
+  for (let i = 0; i < 10; i++) {
+    const len = 0.7 + rand() * 0.35;
+    const geo = petalGeometry({ length: len, width: 0.045, bend: 0.4 + rand() * 0.7, round: 1.1, grad: [0.85, 1.1], segU: 12, segV: 1 });
+    const pivot = new THREE.Group();
+    pivot.rotation.y = (i / 10) * Math.PI * 2 + rand();
+    const m = new THREE.Mesh(geo, mats[i % 3]);
+    m.rotation.x = 0.06 + rand() * 0.3;
+    pivot.add(m); g.add(pivot);
+  }
+  g.userData = { ringY: 0.4, ringR: 0.25, noLeaf: true };
+  return g;
+}
+
 /* ---------- registry ---------- */
 export const TYPES = {
   rose: { name: 'กุหลาบ', group: 'flower', build: buildRose, color: '#d62839', scale: 1, stemR: 0.016, lift: 0 },
   tulip: { name: 'ทิวลิป', group: 'flower', build: buildTulip, color: '#f4a3c0', scale: 1, stemR: 0.014, lift: 0.05, leafSize: 'long' },
   daisy: { name: 'เดซี่', group: 'flower', build: buildDaisy, color: '#ffffff', color2: '#f6c90e', color2Name: 'กลางดอก', scale: 1, stemR: 0.01, lift: -0.05 },
   sunflower: { name: 'ทานตะวัน', group: 'flower', build: buildSunflower, color: '#f9b800', color2: '#4a2c12', color2Name: 'กลางดอก', scale: 1.15, stemR: 0.02, lift: 0 },
+  carnation: { name: 'คาร์เนชั่น', group: 'flower', build: buildCarnation, color: '#f08aa3', scale: 1, stemR: 0.01, lift: 0 },
+  peony: { name: 'พีโอนี', group: 'flower', build: buildPeony, color: '#f6a5b8', scale: 1.1, stemR: 0.016, lift: 0 },
+  hydrangea: { name: 'ไฮเดรนเยีย', group: 'flower', build: buildHydrangea, color: '#7aa7e8', scale: 1.15, stemR: 0.018, lift: -0.05 },
+  gerbera: { name: 'เจอเบอร่า', group: 'flower', build: buildGerbera, color: '#ff6f3c', color2: '#3b2a1a', color2Name: 'กลางดอก', scale: 1, stemR: 0.01, lift: -0.03 },
+  cosmos: { name: 'คอสมอส', group: 'flower', build: buildCosmos, color: '#f08aa3', color2: '#f6c90e', color2Name: 'กลางดอก', scale: 1, stemR: 0.008, lift: -0.03 },
   lily: { name: 'ลิลลี่', group: 'flower', build: buildLily, color: '#fff1f4', color2: '#b45a1f', color2Name: 'เกสร', scale: 1, stemR: 0.016, lift: 0.1 },
   gypsophila: { name: 'ยิปโซ', group: 'filler', build: buildGypsophila, color: '#ffffff', scale: 1, stemR: 0.007, lift: -0.05, noLeaf: true },
   lavender: { name: 'ลาเวนเดอร์', group: 'filler', build: buildLavender, color: '#8e6bd1', scale: 1, stemR: 0.008, lift: 0.05, noLeaf: true },
   eucalyptus: { name: 'ยูคาลิปตัส', group: 'leaf', greens: true, build: buildEucalyptus, color: '#8fb39a', scale: 1, stemR: 0.008 },
   fern: { name: 'เฟิร์น', group: 'leaf', greens: true, build: buildFern, color: '#5c9a45', scale: 1, stemR: 0.007 },
   ruscus: { name: 'รัสคัส', group: 'leaf', greens: true, build: buildRuscus, color: '#3f7a3a', scale: 1, stemR: 0.008 },
+  palm: { name: 'ใบปาล์ม', group: 'leaf', greens: true, build: buildPalm, color: '#3f8a3a', scale: 1, stemR: 0.008 },
+  ivy: { name: 'ไอวี่', group: 'leaf', greens: true, build: buildIvy, color: '#4a7a3a', scale: 1, stemR: 0.006 },
+  salal: { name: 'ใบเลเธอร์', group: 'leaf', greens: true, build: buildSalal, color: '#2f6a35', scale: 1, stemR: 0.008 },
+  grass: { name: 'ใบหญ้า', group: 'leaf', greens: true, build: buildGrass, color: '#7fb04e', scale: 1, stemR: 0.006 },
   monstera: { name: 'มอนสเตอร่า', group: 'leaf', greens: true, build: buildMonstera, color: '#2f7d3a', scale: 1, stemR: 0.012 },
 };
 
