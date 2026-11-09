@@ -373,6 +373,10 @@ document.querySelectorAll('#locks input').forEach((i) => i.addEventListener('cha
 $('#random').onclick = randomIdea;
 $('#random2').onclick = randomIdea;
 
+/* lock page zoom (iOS Safari ignores user-scalable) — the 3D view still pinch-zooms the camera */
+['gesturestart', 'gesturechange', 'gestureend'].forEach((t) => document.addEventListener(t, (e) => e.preventDefault(), { passive: false }));
+document.addEventListener('touchmove', (e) => { if (e.touches.length > 1 && e.scale !== undefined && e.scale !== 1) e.preventDefault(); }, { passive: false });
+
 /* ---------- boot ---------- */
 resize();
 applyBg(); renderBgSwatches();
