@@ -153,7 +153,7 @@ function renderEditor() {
   $('#edColor').value = f.color;
   $('#edScale').value = f.scale;
   $('#edDy').value = f.dy || 0;
-  $('#manualRow').hidden = !!TYPES[f.type].greens;
+  $('#manualRow').hidden = false;
   $('#color2Row').hidden = !t.color2;
   if (t.color2) { $('#color2Label').textContent = 'สี' + t.color2Name; $('#edColor2').value = f.color2 || t.color2; }
   const sw = $('#edSwatches'); sw.innerHTML = '';
@@ -261,8 +261,7 @@ canvas.addEventListener('pointerdown', (e) => {
   if (!e.isPrimary) { drag = null; down = null; controls.enabled = true; return; }
   down = { x: e.clientX, y: e.clientY, t: performance.now(), id: pickFlower(e) };
   const f = state.flowers.find((q) => q.id === down.id);
-  // only flowers that are not greenery can be moved by hand
-  if (f && !TYPES[f.type].greens) {
+  if (f) {
     drag = { f, active: false };
     controls.enabled = false;
   }
@@ -278,8 +277,9 @@ canvas.addEventListener('pointermove', (e) => {
   const pt = new THREE.Vector3();
   if (!rc.ray.intersectPlane(plane, pt)) return;
   let [u, v] = bouquet.planeCoords(drag.f, pt);
-  if (bouquet.flat) { u = Math.max(-1.4, Math.min(1.4, u)); v = Math.max(-1.0, Math.min(1.0, v)); }
-  else { const r = Math.hypot(u, v); if (r > 1.0) { u /= r; v /= r; } }
+  const g = TYPES[drag.f.type].greens;
+  if (bouquet.flat) { const lu = g ? 1.9 : 1.4; u = Math.max(-lu, Math.min(lu, u)); v = Math.max(-1.0, Math.min(g ? 1.3 : 1.0, v)); }
+  else { const lr = g ? 1.2 : 1.0, r = Math.hypot(u, v); if (r > lr) { u = (u / r) * lr; v = (v / r) * lr; } }
   drag.f.man = { ...(drag.f.man || {}), [bouquet.flat ? 'flat' : 'round']: [u, v] };
   bouquet.sync(state);
 });

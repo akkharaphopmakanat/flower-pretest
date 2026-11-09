@@ -331,14 +331,17 @@ export class Bouquet {
       }
     }
     greens.forEach((f, i) => {
+      const man = f.man && f.man[flat ? 'flat' : 'round'], dy = f.dy || 0;
       if (flat) {
         const a = THREE.MathUtils.degToRad(12 + (greens.length > 1 ? (i / (greens.length - 1)) * 156 : 78));
-        slots.set(f.id, { head: new THREE.Vector3(Math.cos(a) * 1.45, top - 0.5 + Math.sin(a) * 0.85, -0.2), green: true });
+        const u = man ? man[0] : Math.cos(a) * 1.45, v = man ? man[1] : Math.sin(a) * 0.85;
+        slots.set(f.id, { head: new THREE.Vector3(u, top - 0.5 + v + dy, -0.2), green: true });
         return;
       }
       const phi = ((i + 0.5) / greens.length) * Math.PI * 2 + 0.4;
       const rho = paper ? 0.82 : 0.78;
-      slots.set(f.id, { head: new THREE.Vector3(rho * Math.cos(phi), paper ? 1.7 : 1.25, rho * Math.sin(phi)), green: true });
+      const u = man ? man[0] : rho * Math.cos(phi), v = man ? man[1] : rho * Math.sin(phi);
+      slots.set(f.id, { head: new THREE.Vector3(u, (paper ? 1.7 : 1.25) + dy, v), green: true });
     });
     return slots;
   }
@@ -346,6 +349,7 @@ export class Bouquet {
   /* world point on the drag plane -> layout-plane coords for flower f */
   planeCoords(f, p) {
     if (!this.flat) return [p.x, p.z];
+    if (TYPES[f.type].greens) return [p.x, p.y - (this.top - 0.5 + (f.dy || 0))];
     const lift = TYPES[f.type].lift || 0;
     return [p.x, p.y - (this.top - 0.1 + lift * 0.5 + (f.dy || 0))];
   }
